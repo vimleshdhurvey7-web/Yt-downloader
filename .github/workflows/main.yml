@@ -39,7 +39,6 @@ jobs:
             fi
           fi
 
-      # --- यहाँ से APK/App बिल्ड करने का प्रोसेस शुरू होता है (Android के लिए) ---
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -47,17 +46,20 @@ jobs:
           java-version: '17'
 
       - name: Grant Execute Permission for Gradlew
-        run: chmod +x gradlew || echo "No gradlew found, skipping."
+        run: chmod +x gradlew || echo "No gradlew found."
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace || echo "Build failed or not an Android project"
+        run: ./gradlew assembleDebug --stacktrace
 
-      # --- यह सबसे महत्वपूर्ण स्टेप है जो डाउनलोड लिंक बनाएगा ---
+      - name: Verify APK Exists (Debug Log)
+        run: |
+          echo "Searching for generated APK files..."
+          find app/build/outputs -name "*.apk" || echo "No APK found in outputs directory."
+
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: YT_Downloader_App_APK
-          # अगर आपकी APK कहीं और बनती है, तो यहाँ उसका पाथ बदल दें
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
