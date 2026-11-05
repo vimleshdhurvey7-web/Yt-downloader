@@ -1,0 +1,72 @@
+name: Build and Extract YT Downloader
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Extract and Build Project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Download ZIP from Release or URL (Optional)
+        # अगर आपकी ZIP फाइल किसी रिलीज़ या यूआरएल से आ रही है, तो इस स्टेप का उपयोग करें
+        run: |
+          # wget -q "https://example.com/your-yt-downloader.zip" -O project.zip
+          echo "Skipping download if ZIP is already in repo..."
+
+      - name: Extract ZIP File Safely
+        run: |
+          # 1. सभी .zip फाइलों को खोजें और एक्सट्रैक्ट करें
+          for zipfile in *.zip; do
+            if [ -f "$zipfile" ]; then
+              echo "Extracting $zipfile..."
+              # -o: ओवरराइट करें, -q: शांत मोड (बहुत ज्यादा लॉग नहीं)
+              unzip -o -q "$zipfile" || {
+                echo "Standard unzip failed. Trying with 7z..."
+                # अगर unzip फेल हो जाए (जैसे करप्ट फाइल), तो 7z आज़माएं
+                7z x "$zipfile" -y || echo "Warning: Could not extract $zipfile"
+              }
+            fi
+          done
+
+      - name: Fix Directory Structure
+        run: |
+          # अगर फाइलें किसी सब-फोल्डर (जैसे yt-downloader-main) में एक्सट्रैक्ट हुई हैं, 
+          # तो उन्हें रूट में लाएं ताकि अगले स्टेप्स आसानी से काम कर सकें।
+          if [ ! -f "requirements.txt" ] && [ ! -f "package.json" ] && [ ! -f "build.gradle" ]; then
+            SUB_DIR=$(find . -maxdepth 2 -name "requirements.txt" -o -name "package.json" -o -name "build.gradle" | head -n 1)
+            if [ -n "$SUB_DIR" ]; then
+              DIR_NAME=$(dirname "$SUB_DIR")
+              if [ "$DIR_NAME" != "." ]; then
+                echo "Moving files from $DIR_NAME to root..."
+                cp -r "$DIR_NAME"/* .
+                cp -r "$DIR_NAME"/.[!.]* . 2>/dev/null || true
+              fi
+            fi
+          fi
+
+      - name: Verify Extraction (Debug)
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          # अगर आप चाहें तो यहाँ अपनी प्रोजेक्ट फाइल (जैसे main.py) चेक कर सकते हैं
+          # if [ ! -f "main.py" ]; then echo "Error: main.py not found!"; exit 1; fi
+
+      # --- यहाँ से आप अपने प्रोजेक्ट के अनुसार बिल्ड स्टेप्स जोड़ सकते हैं ---
+      # उदाहरण के लिए, अगर यह Python प्रोजेक्ट है:
+      # - name: Set up Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.10'
+      # - name: Install dependencies
+      #   run: pip install -r requirements.txt
+      # - name: Run tests
+      #   run: python -m pytest
